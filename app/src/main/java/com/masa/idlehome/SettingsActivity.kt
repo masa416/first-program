@@ -62,6 +62,7 @@ class SettingsActivity : Activity() {
             startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
         }, Ui.mw(this, 4))
 
-        root.addView(Ui.text(this, "版 0.1（試作）", 12f, Ui.SUB), Ui.mw(this, 20))
+        root.addView(Ui.text(this, "「緊急で使う」を押した回数：" + Store.emergencyCount(this) + "回", 12f, Ui.SUB), Ui.mw(this, 20))
+        root.addView(Ui.text(this, "版 0.2（試作）", 12f, Ui.SUB), Ui.mw(this, 20))
     }
 }

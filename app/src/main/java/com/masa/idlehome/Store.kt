@@ -2,6 +2,7 @@ package com.masa.idlehome
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.media.AudioManager
 import org.json.JSONArray
 import org.json.JSONObject
 import java.text.SimpleDateFormat
@@ -62,6 +63,17 @@ object Store {
     fun setLastIdle(c: Context, m: Int) { p(c).edit().putInt("lastIdle", m).apply() }
     fun pendingAsk(c: Context): Boolean = p(c).getBoolean("pendingAsk", false)
     fun setPendingAsk(c: Context, v: Boolean) { p(c).edit().putBoolean("pendingAsk", v).apply() }
+
+    // ---- 「緊急で使う」を押した回数 ----
+    fun emergencyCount(c: Context): Int = p(c).getInt("emergency", 0)
+    fun addEmergency(c: Context) { p(c).edit().putInt("emergency", emergencyCount(c) + 1).apply() }
+
+    // 電話中・着信中かどうか（このときは質問で邪魔しない）
+    fun inCall(c: Context): Boolean {
+        val am = c.getSystemService(AudioManager::class.java)
+        val m = am.mode
+        return m == AudioManager.MODE_IN_CALL || m == AudioManager.MODE_IN_COMMUNICATION || m == AudioManager.MODE_RINGTONE
+    }
 
     // ---- 日ごとの何もしない時間（分）----
     fun idleOn(c: Context, day: String): Int = JSONObject(p(c).getString("idle", "{}")).optInt(day, 0)

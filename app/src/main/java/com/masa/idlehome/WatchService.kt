@@ -44,7 +44,7 @@ class WatchService : Service() {
         Store.setScreenOffAt(ctx, 0L)
         Store.setPendingAsk(ctx, true)
         // 「他のアプリの上に表示」が許可されていれば、どのアプリを開いていても質問を出す
-        if (Settings.canDrawOverlays(ctx)) {
+        if (Settings.canDrawOverlays(ctx) && !Store.inCall(ctx)) {
             try {
                 ctx.startActivity(Intent(ctx, AskActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             } catch (e: Exception) {
