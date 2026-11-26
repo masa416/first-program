@@ -67,8 +67,27 @@ class HomeActivity : Activity() {
     override fun onResume() {
         super.onResume()
         WatchService.start(this)
+        // 普通モード中は、いつものホーム画面（Pixel Launcher など）を出す
+        if (!Store.pendingAsk(this) && Store.isNormal(this) &&
+            Store.remaining(this, System.currentTimeMillis()) > 0L && openNormalHome()) return
         refresh()
         if (Store.pendingAsk(this)) startActivity(Intent(this, AskActivity::class.java))
+    }
+
+    // 普通モード用のホームアプリを開く。見つからなければ false
+    private fun openNormalHome(): Boolean {
+        var pkg = Store.normalHome(this)
+        if (pkg.isEmpty()) pkg = Store.PIXEL_LAUNCHER
+        val i = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).setPackage(pkg)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (i.resolveActivity(packageManager) == null) return false
+        return try {
+            startActivity(i)
+            overridePendingTransition(0, 0)
+            true
+        } catch (e: Exception) {
+            false
+        }
     }
 
     @Deprecated("ホーム画面なので戻るボタンでは何もしない")

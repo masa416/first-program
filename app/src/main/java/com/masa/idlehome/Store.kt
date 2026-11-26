@@ -104,6 +104,11 @@ object Store {
         e.apply()
     }
 
+    // 普通モード中に使うホームアプリ（空なら Pixel Launcher を自動で探す）
+    const val PIXEL_LAUNCHER = "com.google.android.apps.nexuslauncher"
+    fun normalHome(c: Context): String = p(c).getString("normalHome", "") ?: ""
+    fun setNormalHome(c: Context, pkg: String) { p(c).edit().putString("normalHome", pkg).apply() }
+
     fun fmtSec(s: Long): String = if (s >= 60) "${s / 60}分${s % 60}秒" else "${s}秒"
 
     // ---- 「緊急で使う」を押した回数 ----

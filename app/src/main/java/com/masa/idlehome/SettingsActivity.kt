@@ -1,6 +1,7 @@
 package com.masa.idlehome
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.app.TimePickerDialog
 import android.content.Intent
 import android.net.Uri
@@ -25,6 +26,15 @@ class SettingsActivity : Activity() {
     override fun onResume() {
         super.onResume()
         build()
+    }
+
+    // このスマホに入っている、自分以外のホームアプリ（名前, パッケージ名）
+    private fun homeApps(): List<Pair<String, String>> {
+        val q = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+        return packageManager.queryIntentActivities(q, 0)
+            .filter { it.activityInfo.packageName != packageName }
+            .map { Pair(it.loadLabel(packageManager).toString(), it.activityInfo.packageName) }
+            .distinctBy { it.second }
     }
 
     private fun hhmm(m: Int): String = String.format(Locale.JAPAN, "%02d:%02d", m / 60, m % 60)
@@ -58,11 +68,27 @@ class SettingsActivity : Activity() {
         root.addView(Ui.button(this, "ホームアプリをこのアプリにする") {
             startActivity(Intent(Settings.ACTION_HOME_SETTINGS))
         }, Ui.mw(this, 4))
+        root.addView(Ui.text(this, "普通モード中のホーム画面", 14f, Ui.SUB), Ui.mw(this, 20))
+        val homes = homeApps()
+        val cur = Store.normalHome(this).ifEmpty { Store.PIXEL_LAUNCHER }
+        val curLabel = homes.firstOrNull { it.second == cur }?.first ?: "見つからない（このアプリのまま）"
+        root.addView(Ui.button(this, "選ぶ（今：" + curLabel + "）") {
+            if (homes.isEmpty()) return@button
+            AlertDialog.Builder(this)
+                .setTitle("普通モード中に使うホーム画面")
+                .setItems(homes.map { it.first }.toTypedArray()) { _, which ->
+                    Store.setNormalHome(this, homes[which].second)
+                    build()
+                }
+                .show()
+        }, Ui.mw(this, 4))
+
+        root.addView(Ui.text(this, "そのほか", 14f, Ui.SUB), Ui.mw(this, 20))
         root.addView(Ui.button(this, "電池の最適化から外す（記録が止まらないように）") {
             startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
         }, Ui.mw(this, 4))
 
         root.addView(Ui.text(this, "「緊急で使う」を押した回数：" + Store.emergencyCount(this) + "回", 12f, Ui.SUB), Ui.mw(this, 20))
-        root.addView(Ui.text(this, "版 0.3（試作）", 12f, Ui.SUB), Ui.mw(this, 20))
+        root.addView(Ui.text(this, "版 0.4（試作）", 12f, Ui.SUB), Ui.mw(this, 20))
     }
 }
