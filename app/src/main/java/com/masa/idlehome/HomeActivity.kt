@@ -86,7 +86,9 @@ class HomeActivity : Activity() {
     private fun refresh() {
         val now = System.currentTimeMillis()
         val date = SimpleDateFormat("M月d日(E)", Locale.JAPAN).format(Date(now))
-        header.text = date + "　今日の何もしない時間 " + Ui.fmtMin(Store.idleOn(this, Store.dayKey(now)))
+        val mode = if (Store.isNormal(this)) "普通モード中・" else ""
+        header.text = date + "　今日の何もしない時間 " + Ui.fmtMin(Store.idleOn(this, Store.dayKey(now))) +
+            "\n" + mode + "普通に使える時間 残り " + Store.fmtSec(Store.remaining(this, now))
 
         list.removeAllViews()
         val memos = Store.memos(this)

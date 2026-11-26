@@ -42,6 +42,22 @@ class AskActivity : Activity() {
             }
         }, Ui.mw(this, 12))
 
+        // 普通モード：何もしない時間で貯めた分だけ、質問なしで普通に使える
+        val now = System.currentTimeMillis()
+        val left = Store.remaining(this, now)
+        val normalLabel = if (left > 0L) "普通モードで使う（残り " + Store.fmtSec(left) + "）" else "普通モードで使う（貯まっていない）"
+        val normalBtn = Ui.button(this, normalLabel) {
+            if (Store.remaining(this, System.currentTimeMillis()) > 0L) {
+                Store.startNormal(this, System.currentTimeMillis())
+                Store.setPendingAsk(this, false)
+                WatchService.start(this)
+                finish()
+            }
+        }
+        normalBtn.isEnabled = left > 0L
+        root.addView(normalBtn, Ui.mw(this, 8))
+        root.addView(Ui.text(this, "何もしない時間の半分だけ、普通に使える時間が貯まる（毎日0に戻る）", 12f, Ui.SUB), Ui.mw(this, 4))
+
         // 緊急のときだけの抜け道（電話・地図・連絡など）
         root.addView(Ui.button(this, "緊急で使う") {
             Store.setPendingAsk(this, false)

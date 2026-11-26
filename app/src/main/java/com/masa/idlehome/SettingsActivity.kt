@@ -63,6 +63,6 @@ class SettingsActivity : Activity() {
         }, Ui.mw(this, 4))
 
         root.addView(Ui.text(this, "「緊急で使う」を押した回数：" + Store.emergencyCount(this) + "回", 12f, Ui.SUB), Ui.mw(this, 20))
-        root.addView(Ui.text(this, "版 0.2（試作）", 12f, Ui.SUB), Ui.mw(this, 20))
+        root.addView(Ui.text(this, "版 0.3（試作）", 12f, Ui.SUB), Ui.mw(this, 20))
     }
 }

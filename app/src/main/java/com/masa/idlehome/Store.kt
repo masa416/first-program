@@ -64,6 +64,48 @@ object Store {
     fun pendingAsk(c: Context): Boolean = p(c).getBoolean("pendingAsk", false)
     fun setPendingAsk(c: Context, v: Boolean) { p(c).edit().putBoolean("pendingAsk", v).apply() }
 
+    // ---- 普通モード（何もしない時間の0.5倍だけ、普通にスマホを使える）----
+    const val RATE = 0.5          // 何もしない1分 → 普通に使える0.5分
+    // 残り時間は秒で持つ。日をまたいだら0に戻す
+    private fun ensureDay(c: Context, now: Long) {
+        val today = dayKey(now)
+        if (p(c).getString("creditDay", "") != today) {
+            p(c).edit().putString("creditDay", today).putLong("credit", 0L)
+                .putBoolean("normal", false).putLong("segStart", 0L).apply()
+        }
+    }
+    fun addCredit(c: Context, idleMin: Int, now: Long) {
+        ensureDay(c, now)
+        val add = (idleMin * 60 * RATE).toLong()
+        p(c).edit().putLong("credit", p(c).getLong("credit", 0L) + add).apply()
+    }
+    fun isNormal(c: Context): Boolean = p(c).getBoolean("normal", false)
+    // 今の残り秒（普通モードで画面がついている間は、その分を引いて計算）
+    fun remaining(c: Context, now: Long): Long {
+        ensureDay(c, now)
+        var r = p(c).getLong("credit", 0L)
+        val seg = p(c).getLong("segStart", 0L)
+        if (isNormal(c) && seg > 0L) r -= (now - seg) / 1000
+        return if (r < 0L) 0L else r
+    }
+    // 普通モードを始める（画面がついている前提）
+    fun startNormal(c: Context, now: Long) {
+        p(c).edit().putBoolean("normal", true).putLong("segStart", now).apply()
+    }
+    // 画面がついた：普通モードなら減り始める
+    fun resumeSegment(c: Context, now: Long) {
+        if (isNormal(c)) p(c).edit().putLong("segStart", now).apply()
+    }
+    // 画面が消えた・時間切れ：使った分を引く。0になったら普通モードを終える
+    fun consume(c: Context, now: Long) {
+        val r = remaining(c, now)
+        val e = p(c).edit().putLong("credit", r).putLong("segStart", 0L)
+        if (r <= 0L) e.putBoolean("normal", false)
+        e.apply()
+    }
+
+    fun fmtSec(s: Long): String = if (s >= 60) "${s / 60}分${s % 60}秒" else "${s}秒"
+
     // ---- 「緊急で使う」を押した回数 ----
     fun emergencyCount(c: Context): Int = p(c).getInt("emergency", 0)
     fun addEmergency(c: Context) { p(c).edit().putInt("emergency", emergencyCount(c) + 1).apply() }

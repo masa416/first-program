@@ -12,7 +12,9 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.provider.Settings
 
 // 画面が消えた・スマホを開いたを見張って、何もしない時間を数える
@@ -22,7 +24,11 @@ class WatchService : Service() {
         override fun onReceive(ctx: Context, intent: Intent) {
             when (intent.action) {
                 Intent.ACTION_SCREEN_OFF -> {
-                    if (Store.screenOffAt(ctx) == 0L) Store.setScreenOffAt(ctx, System.currentTimeMillis())
+                    val now = System.currentTimeMillis()
+                    // 普通モード中なら、画面がついていた分を残り時間から引く
+                    Store.consume(ctx, now)
+                    handler.removeCallbacks(timeUp)
+                    if (Store.screenOffAt(ctx) == 0L) Store.setScreenOffAt(ctx, now)
                 }
                 Intent.ACTION_USER_PRESENT -> onOpened(ctx)
                 Intent.ACTION_SCREEN_ON -> {
@@ -42,8 +48,20 @@ class WatchService : Service() {
         Store.addIdle(ctx, Store.dayKey(now), mins)
         Store.setLastIdle(ctx, mins)
         Store.setScreenOffAt(ctx, 0L)
+        // 何もしない時間の0.5倍が、普通に使える時間として貯まる
+        Store.addCredit(ctx, mins, now)
+        // 普通モード中で時間が残っていれば、質問を出さずにそのまま使える
+        if (Store.isNormal(ctx) && Store.remaining(ctx, now) > 0L) {
+            Store.resumeSegment(ctx, now)
+            scheduleTimeUp(ctx)
+            return
+        }
+        askNow(ctx)
+    }
+
+    // 質問の画面を出す（「他のアプリの上に表示」が許可されていれば、どのアプリを開いていても出る）
+    private fun askNow(ctx: Context) {
         Store.setPendingAsk(ctx, true)
-        // 「他のアプリの上に表示」が許可されていれば、どのアプリを開いていても質問を出す
         if (Settings.canDrawOverlays(ctx) && !Store.inCall(ctx)) {
             try {
                 ctx.startActivity(Intent(ctx, AskActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
@@ -51,6 +69,20 @@ class WatchService : Service() {
                 // 出せなかったときは、次にホーム画面を開いたときに質問する
             }
         }
+    }
+
+    // ---- 普通モードの時間切れ ----
+    private val handler = Handler(Looper.getMainLooper())
+    private val timeUp = Runnable {
+        val now = System.currentTimeMillis()
+        Store.consume(this, now)
+        if (!Store.isNormal(this)) askNow(this)
+        else scheduleTimeUp(this)
+    }
+    private fun scheduleTimeUp(ctx: Context) {
+        handler.removeCallbacks(timeUp)
+        val r = Store.remaining(ctx, System.currentTimeMillis())
+        handler.postDelayed(timeUp, r * 1000 + 500)
     }
 
     override fun onCreate() {
@@ -80,9 +112,14 @@ class WatchService : Service() {
         }
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // 普通モードが始まったら、時間切れのタイマーをセットする
+        if (Store.isNormal(this)) scheduleTimeUp(this)
+        return START_STICKY
+    }
 
     override fun onDestroy() {
+        handler.removeCallbacks(timeUp)
         try { unregisterReceiver(receiver) } catch (e: Exception) { }
         super.onDestroy()
     }
